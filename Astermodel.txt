@@ -1,0 +1,212 @@
+This is a text file that goes over Astermodel.
+
+This program trains a yolov8 model on large weights (pre-trained weights) so that it can be used in a computer vision program.
+
+The author of this program is David Minott, debugging was done with AI. 
+
+The import section of the code is broken down as follows:
+
+Import section:
+
+```
+"os" - provides functions for us to interact with the operating system, in my program it is used to manage file paths
+
+"PIL.Image" is the Pillow library (Python Image Library) that is used to handle image reading. We need this to be able to "read" our training and validation images. 
+Image.open() will open an image file.
+
+"torch" is the PyTorch library that is used for machine learning models. 
+It creates the tools we need to handle tensors, creating NNs, and performing optimzations (This program is the first time I have used an optimizer-THE OPTIMZER IS NOT CUSTOM).
+
+"torch.utils.data.Dataset" - is the PyTorch class for handling datasets (The datasets must follow a specific format, and have a .yaml file in them).
+
+"torch.utils.DataLoader" - Loads the data from the dataset into batches (the batch size can change depending on how much memory you have) so that they can be used for training.
+
+"torchvision.transforms"- Provides common image transformations such as skewing, color changes, and more. 
+The image transform I performed in this program was a blue, because the movement of the robot may make the camera blurry.
+
+"ultralytics.YOLO" - A class from the ultralytics package that intializes yolo models. In this case I used a yolov8 model as their is more documentation on it then a new yolov9 model. 
+
+---------------------------------------------------------------
+Custom Dataset Section: 
+
+class CustomAsteroidDataset(Dataset):
+    def __init__(self, image_dir: str, label_dir: str, transform=None):
+        self.image_dir = image_dir
+        self.label_dir = label_dir
+        self.transform = transform
+        self.image_files = [f for f in os.listdir(self.image_dir) if f.endswith(('.jpg', '.png', '.jpeg'))]
+
+```
+
+This defines a custom dataset class that inherits from PyTorch’s Dataset. Again YOU HAVE TO IMPORT THE PYTORCH DATASET
+The class is responsible for reading images and labels for asteroids and returning them in a format that can be used for training the model.
+
+image_dir: Directory where the images are stored.
+label_dir: Directory where the label files (in .txt format) are stored.
+transform: Image transformations (e.g., resizing, converting to tensors).
+image_files: Filters image files (those with .jpg, .png, .jpeg extensions) from the given directory and stores their names.
+
+-----------------------------------------------------------------
+Informing PyTorch of total number of images:
+
+    def __len__(self) -> int:
+        '''Returns the total number of image files'''
+        return len(self.image_files)
+
+```
+
+The __len__ method returns the total number of images in the dataset, allowing PyTorch to know the size of the dataset.
+
+---------------------------------------------------------------------
+getitem section:
+
+    def __getitem__(self, idx: int):
+        img_name = self.image_files[idx]
+        img_path = os.path.join(self.image_dir, img_name)
+        image = Image.open(img_path).convert("RGB")
+        
+        label_name = img_name.replace('.jpg', '.txt').replace('.png', '.txt').replace('.jpeg', '.txt')
+        label_path = os.path.join(self.label_dir, label_name)
+
+        labels = []
+        if os.path.exists(label_path):
+            with open(label_path, 'r') as f:
+                for line in f.readlines():
+                    labels.append(list(map(float, line.strip().split())))
+
+        labels = torch.tensor(labels)
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, labels
+
+```
+
+The __getitem__ method loads an image and its corresponding label (bounding boxes and class labels) when called with an index.
+Again, an image without a label is useless in the context of training a model (it has to associate the image with something right?), so this is why this is so important.
+
+img_name: The name of the image at the specified index.
+Image Loading: Opens the image and converts it to RGB format (3-channel color).
+Label Loading: Replaces the image extension with .txt to find the corresponding label file.
+Labels: Reads and parses the label file. The labels are converted to a list of floating-point values (e.g., class_id x_center y_center width height). (CLASS ID IS 0, AS THERE IS ONLY 1 CLASS)
+Transformations: If a transformation (e.g., resizing, tensor conversion) is provided, it's applied to the image. The transform we use is a blur
+Return: Returns the image and its corresponding labels as tensors. This is so that PyTorch can train the model based on those Tensors. (think of it as a translation).
+
+-----------------------------------------------------------------
+CUDA Usage:
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+```
+This checks if a CUDA capable GPU is available. If yes, it assigns the cuda device for faster training. Otherwise, it uses the CPU.
+-----------------------------------------------------------------
+Transform Section:
+
+transform = transforms.Compose([
+    transforms.Resize((640, 640)),  # Resize images to 640x640 (common YOLO input size)
+    transforms.ToTensor()  # Convert images to tensors
+])
+
+```
+
+This section resizes the images to all be 640 x 640, which is the common yolo input size. It also CRUCIALLY converts a PIL image to a PyTorch tensor.
+-----------------------------------------------------------------
+Grabbing the Dataset (Our Images and Labels Section): 
+
+image_dir = "C:/Users/david/OneDrive/IEEEOuter/IEEE/Astermodel_mk1/train/images"
+label_dir = "C:/Users/david/OneDrive/IEEEOuter/IEEE/Astermodel_mk1/train/labels"
+train_dataset = CustomAsteroidDataset(image_dir=image_dir, label_dir=label_dir, transform=transform)
+
+```
+
+Initializes the custom dataset with the directories for images and labels, and applies the defined transformations. This train_dataset will be used in the training loop.
+
+-----------------------------------------------------------------
+Loading the Dataset:
+
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+
+```
+
+Loads the dataset that we made earlier, can breaks into batches of 16. It will also shuffle the images (shuffle is true). You can now use the Loaded dataset.
+Remember this step - as I spent way too much time trying to figure out why this was not working, I grabbed the data but did not load it.
+Please load your data. :)
+
+-----------------------------------------------------------------
+Intialize YOLO:
+
+model = YOLO('yolov8n.pt')  # Use YOLOv8 with pre-trained weights
+model = model.to(device)
+
+```
+Now that we have our dataset loaded, we can intialize yolo to now train on the dataset. We use the pre-trained weights of yolov8 to make this process easier. 
+
+------------------------------------------------------------------
+Optimizer:
+
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+```
+Sets up the Adam optimizer, which is an optimization algorithm used to update model parameters during training. The learning rate is set to 0.001.
+------------------------------------------------------------------
+Loss Function:
+
+criterion = torch.nn.CrossEntropyLoss()
+
+```
+The loss function (cross-entropy) calculates the difference between the predicted outputs and the ground truth labels. Basically calculates how "accurate" our model is.
+------------------------------------------------------------------
+The Training Loop:
+
+def train_model(num_epochs=50):
+    for epoch in range(num_epochs):
+        model.train(data='C:/Users/david/OneDrive/IEEEOuter/IEEE/Astermodel_mk1/data.yaml', epochs=50)
+        running_loss = 0.0
+
+        for i, (images, labels) in enumerate(train_loader):
+            images = images.to(device)
+            labels = labels.to(device)
+
+            optimizer.zero_grad()  # Zero the parameter gradients
+
+            # Forward pass
+            outputs = model(images)
+
+            # Find our loss values
+            loss = criterion(outputs, labels)
+            running_loss += loss.item()
+
+            # Backpropagation and optimization
+            loss.backward()
+            optimizer.step()
+
+            print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+
+        print(f"Epoch [{epoch+1}/{num_epochs}], Average Loss: {running_loss/len(train_loader):.4f}")
+
+```
+
+This defines the core training loop for the model.
+Epochs: Iterates over the dataset for a specified number of epochs (here set to 50 by default).
+Training: The model is set to training mode using the model.train() method. The model uses the data from data.yaml, which defines the dataset structure.
+Forward Pass: The images are passed through the model to generate predictions (outputs).
+Loss Calculation: The loss between the predicted output and ground truth labels is calculated using the criterion.
+Backpropagation: The gradients are computed using loss.backward(), and the optimizer updates the model parameters using optimizer.step().
+Loss Logging: Prints the loss after each batch and epoch
+
+------------------------------------------------------------------
+Execution Stage:
+
+if __name__ == "__main__":
+    train_model(num_epochs=50)
+```
+
+Trains the dataset and gives us a model. 
+
+------------------------------------------------------------------
+CONCLUSION:
+
+Please refer to this txt file or to David Minott about questions of this code. If you notice if anything can be improved, please let me know.
+Again I emphasize that you do NOT push things to this code without permission. This is a very 'sensitive' program, so please be careful.
+
