@@ -24,7 +24,7 @@ It creates the tools we need to handle tensors, creating NNs, and performing opt
 "torchvision.transforms"- Provides common image transformations such as skewing, color changes, and more. 
 The image transform I performed in this program was a blue, because the movement of the robot may make the camera blurry.
 
-"ultralytics.YOLO" - A class from the ultralytics package that intializes yolo models. In this case I used a yolov8 model as their is more documentation on it then a new yolov9 model. 
+"ultralytics.YOLO" - A class from the ultralytics package that intializes yolo models. In this case I used a yolov8 model as there is more documentation on it then a new yolov9 model. 
 
 ---------------------------------------------------------------
 Custom Dataset Section: 
