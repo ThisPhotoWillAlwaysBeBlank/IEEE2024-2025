@@ -2,7 +2,7 @@ This is a text file that goes over Astermodel.
 
 This program trains a yolov8 model on large weights (pre-trained weights) so that it can be used in a computer vision program.
 
-The author of this program is David Minott, debugging was done with AI. 
+The author of this program is David Minott, debugging was largely done with AI. 
 
 The import section of the code is broken down as follows:
 
