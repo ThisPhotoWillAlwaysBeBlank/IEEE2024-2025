@@ -45,6 +45,11 @@ class CustomAsteroidDataset(Dataset):
 
 # Please use CUDA if you have access to it, it makes things much faster
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(torch.cuda.device_count())  # Should return the number of GPUs available
+print(torch.cuda.get_device_name(0))  # Should return the name of your GPU, e.g., "NVIDIA GeForce RTX 4050"
+print(torch.cuda.is_available())
+print(device) 
+
 
 # Set up data transformations (resize, tensor conversion)
 transform = transforms.Compose([
@@ -58,14 +63,11 @@ label_dir = "C:/Users/david/OneDrive/IEEEOuter/IEEE/Astermodel_mk1/train/labels"
 train_dataset = CustomAsteroidDataset(image_dir=image_dir, label_dir=label_dir, transform=transform)
 
 # Create DataLoader
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
 
 # Initialize the YOLOv8 model
 model = YOLO('yolov8n.pt')  # Use YOLOv8 with pre-trained weights
 model = model.to(device)
-
-# Set up an optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 # Set up our loss function
 criterion = torch.nn.CrossEntropyLoss()
@@ -74,7 +76,7 @@ criterion = torch.nn.CrossEntropyLoss()
 def train_model(num_epochs=50):  # More epochs might lead to better performance
     for epoch in range(num_epochs):
         model.train(data='C:/Users/david/OneDrive/IEEEOuter/IEEE/Astermodel_mk1/data.yaml', epochs=50) # Switch to training mode
-        running_loss = 0.0
+        running_loss = 0.0 #Starting loss (0)
 
         for i, (images, labels) in enumerate(train_loader):
             images = images.to(device)
