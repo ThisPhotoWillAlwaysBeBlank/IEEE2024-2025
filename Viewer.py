@@ -5,10 +5,10 @@ import torch #To load the yolo model
 from ultralytics import YOLO #Also to load the yolo model
 
 # Load the trained YOLO model
-model = YOLO('C:/Users/david/OneDrive/IEEEOuter/IEEE/Astermodel_mk1/weights/best.pt')  # Path to the trained Astermodel (best weight chosen)
+model = YOLO("C:/Users/david/OneDrive/IEEEOuter/runs/detect/train4/weights/best.pt")  # Path to the trained Astermodel (best weight chosen)
 
 # Open the camera (default camera is usually at index 0)
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 if not cap.isOpened():
     print("Error: Could not open video stream.")
