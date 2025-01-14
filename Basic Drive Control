@@ -1,0 +1,45 @@
+#include <TMCStepper.h>
+
+// Pin Definitions for TMC2209 and Arduino Mega
+#define EN_PIN         4      // Enable Pin (LOW to enable the driver)
+#define DIR_PIN        3      // Direction Pin
+#define STEP_PIN       2      // Step Pin
+#define PDN_UART_PIN   1      // TX0 (Pin 1 on Arduino Mega, used for UART TX)
+#define R_SENSE        0.11f  // Sense resistor value for TMC2209
+
+// TMC2209 Driver Configuration
+#define DRIVER_ADDRESS 0b00  // Default address for TMC2209
+
+// UART Configuration using TX0 (Pin 1)
+TMC2209Stepper driver(&Serial, R_SENSE, DRIVER_ADDRESS);
+
+// Speed Control Variable (Normalized 0 to 1)
+float speed = 0.5;  // Set speed from 0 to 1
+
+void setup() {
+    Serial.begin(115200);  // Initialize Serial Communication for UART
+
+    pinMode(EN_PIN, OUTPUT);
+    pinMode(DIR_PIN, OUTPUT);
+    pinMode(STEP_PIN, OUTPUT);
+
+    digitalWrite(EN_PIN, LOW);  // Enable the driver (LOW = Active)
+
+    // Initialize the TMC2209 driver
+    driver.begin();              // Initialize UART communication
+    driver.toff(5);              // Enable driver in software
+    driver.rms_current(800);     // Set motor current limit to 800mA
+    driver.microsteps(16);       // Set microstepping mode to 1/16
+    driver.pwm_autoscale(true);  // Enable automatic current scaling
+
+    digitalWrite(DIR_PIN, HIGH);  // Set direction forward
+}
+
+void loop() {
+    // Continuous rotation with normalized speed control
+    int delayTime = map(speed * 100, 0, 100, 2000, 500);  // Map speed to delay range
+    digitalWrite(STEP_PIN, HIGH);
+    delayMicroseconds(delayTime);
+    digitalWrite(STEP_PIN, LOW);
+    delayMicroseconds(delayTime);
+}
