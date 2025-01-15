@@ -13,8 +13,8 @@
 // UART Configuration using TX0 (Pin 1)
 TMC2209Stepper driver(&Serial, R_SENSE, DRIVER_ADDRESS);
 
-// Speed Control Variable (Normalized 0 to 1)
-float speed = 0.5;  // Set speed from 0 to 1
+// Speed Control Variable (Microseconds per Step Delay)
+int speed = 400;  // Set delay in microseconds for improved speed
 
 void setup() {
     Serial.begin(115200);  // Initialize Serial Communication for UART
@@ -28,18 +28,54 @@ void setup() {
     // Initialize the TMC2209 driver
     driver.begin();              // Initialize UART communication
     driver.toff(5);              // Enable driver in software
-    driver.rms_current(800);     // Set motor current limit to 800mA
+    driver.rms_current(1000);    // Adjust motor current to match rated value
     driver.microsteps(16);       // Set microstepping mode to 1/16
     driver.pwm_autoscale(true);  // Enable automatic current scaling
 
     digitalWrite(DIR_PIN, HIGH);  // Set direction forward
 }
 
+bool stopMotor = false;  // Flag to control motor operation
+
 void loop() {
-    // Continuous rotation with normalized speed control
-    int delayTime = map(speed * 100, 0, 100, 2000, 500);  // Map speed to delay range
+    if (stopMotor) {
+        // Motor is stopped
+        digitalWrite(STEP_PIN, LOW);  // Ensure motor is not stepping
+        return;  // Exit the loop, stopping all motor activity
+    }
+
+    // Gradual acceleration for smoother start
+    for (int i = 1000; i > speed; i -= 50) {
+        digitalWrite(STEP_PIN, HIGH);
+        delayMicroseconds(i);
+        digitalWrite(STEP_PIN, LOW);
+        delayMicroseconds(i);
+    }
+
+    // Continuous rotation at set speed
     digitalWrite(STEP_PIN, HIGH);
-    delayMicroseconds(delayTime);
+    delayMicroseconds(speed);
     digitalWrite(STEP_PIN, LOW);
-    delayMicroseconds(delayTime);
+    delayMicroseconds(speed);
+
+    // Check for serial commands
+    if (Serial.available() > 0) {
+        String command = Serial.readStringUntil('\n');  // Read serial input
+        command.trim();  // Remove any whitespace or newline characters
+
+        if (command.equalsIgnoreCase("STOP")) {
+            stopMotor = true;  // Set the stop flag
+            Serial.println("Motor stopped.");
+        } else if (command.equalsIgnoreCase("START")) {
+            stopMotor = false;  // Reset the stop flag
+            Serial.println("Motor started.");
+        } else {
+            int newSpeed = command.toInt();  // Convert command to integer
+            if (newSpeed > 0) {
+                speed = newSpeed;  // Update speed
+                Serial.print("New speed set to: ");
+                Serial.println(speed);
+            }
+        }
+    }
 }
